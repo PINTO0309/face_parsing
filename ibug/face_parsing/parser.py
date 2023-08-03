@@ -101,8 +101,7 @@ class FaceParser(object):
 
         imgs = [ref.roi_tanh_polar_warp(img, b, *self.sz, keep_aspect_ratio=True) for b in bboxes]
         imgs = [self.transform(img) for img in imgs]
-        bboxes_tensor = torch.tensor(
-            bboxes).view(num_faces, -1).to(self.device)
+        bboxes_tensor = torch.tensor(bboxes).view(num_faces, -1).to(self.device)
 
         # img = img.repeat(num_faces, 1, 1, 1)
         # img = roi_tanh_polar_warp(
@@ -122,6 +121,10 @@ class FaceParser(object):
         """
         logits = self.model(img, bboxes_tensor)
         mask = self.restore_warp(h, w, logits, bboxes_tensor)
+        """
+        mask.shape
+            (1, 480, 640)
+        """
         return mask
 
     def restore_warp(self, h, w, logits: torch.Tensor, bboxes_tensor):

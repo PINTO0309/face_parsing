@@ -110,8 +110,7 @@ def main() -> None:
                 dst = frame
                 for i, (face, mask) in enumerate(zip(faces, masks)):
                     bbox = face[:4].astype(int)
-                    cv2.rectangle(frame, (bbox[0], bbox[1]), (bbox[2], bbox[3]), color=(
-                        0, 0, 255), thickness=2)
+                    cv2.rectangle(frame, (bbox[0], bbox[1]), (bbox[2], bbox[3]), color=(0, 0, 255), thickness=2)
                     alpha = alphas[i]
                     index = mask > 0
                     res = colormap[mask]

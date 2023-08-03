@@ -31,6 +31,11 @@
         }
     },
     // USB Camera mount
-    "mounts": ["type=bind,source=/dev/bus/usb,target=/dev/bus/usb"],
-    "runArgs": ["--privileged"]
+    "mounts": [
+        "type=bind,source=/dev/bus/usb,target=/dev/bus/usb"
+    ],
+    "runArgs": [
+        "--gpus", "all",
+        "--privileged"
+    ]
 }

@@ -10,6 +10,7 @@
             "justMyCode": false,
             "preLaunchTask": "PreDebug",
             "args": [
+                "-i", "0", "-e", "rtnet50", "--decoder", "fcn", "-n", "11", "-d", "cuda:0",
             ]
         }
     ]

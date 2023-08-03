@@ -138,13 +138,16 @@ def roi_tanh_polar_warp(images: torch.Tensor, rois: torch.Tensor, target_width: 
 
 def roi_tanh_polar_restore(warped_images: torch.Tensor, rois: torch.Tensor, image_width: int, image_height: int,
                            angular_offsets: Union[float, torch.Tensor] = 0.0, interpolation: str = 'bilinear',
-                           padding: str = 'zeros', keep_aspect_ratio: bool = False) -> torch.Tensor:
+                           padding: str = 'zeros', keep_aspect_ratio: bool = False, export_onnx: bool = False) -> torch.Tensor:
     warped_height, warped_width = warped_images.size()[-2:]
     roi_centers = (rois[:, 2:4] + rois[:, :2]) / 2.0
     rois_radii = (rois[:, 2:4] - rois[:, :2]) / math.pi ** 0.5
 
     grids = torch.zeros(warped_images.size()[:1] + (image_height, image_width, 2),
                         dtype=warped_images.dtype, device=warped_images.device)
+    if export_onnx and isinstance(image_width, torch.Tensor):
+        image_width = image_width[0]
+        image_height = image_height[0]
     dest_x_indices = torch.arange(image_width, dtype=warped_images.dtype, device=warped_images.device)
     dest_y_indices = torch.arange(image_height, dtype=warped_images.dtype, device=warped_images.device)
     dest_indices = torch.cat((dest_x_indices.unsqueeze(0).expand((image_height, image_width)).unsqueeze(-1),

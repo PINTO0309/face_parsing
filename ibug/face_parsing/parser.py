@@ -33,7 +33,7 @@ WEIGHT = {
 
 class SegmentationModel(nn.Module):
 
-    def __init__(self, encoder='rtnet50', decoder='fcn', num_classes=14):
+    def __init__(self, encoder='rtnet50', decoder='fcn', num_classes=14, export_onnx=False):
         super().__init__()
 
         if 'rtnet' in encoder:
@@ -45,8 +45,17 @@ class SegmentationModel(nn.Module):
         self.decoder = DECODER_MAP[decoder.lower()](
             in_channels=in_channels, num_classes=num_classes)
         self.low_level = getattr(self.decoder, 'low_level', False)
+        self.export_onnx = export_onnx
 
-    def forward(self, x, rois):
+    def restore_warp(self, h, w, logits: torch.Tensor, bboxes_tensor):
+        logits = softmax(logits, 1)
+        logits[:, 0] = 1 - logits[:, 0]  # background class
+        logits = roi_tanh_polar_restore(logits, bboxes_tensor, w, h, keep_aspect_ratio=True, export_onnx=self.export_onnx)
+        logits[:, 0] = 1 - logits[:, 0]
+        predict = torch.argmax(logits, dim=1, keepdim=True)
+        return predict
+
+    def forward(self, x, rois, image_height, image_width):
         input_shape = x.shape[-2:]
         features = self.encoder(x, rois)
 
@@ -57,19 +66,21 @@ class SegmentationModel(nn.Module):
         else:
             x = self.decoder(high)
         x = F.interpolate(x, size=input_shape, mode='bilinear', align_corners=False)
-        return x
+        return self.restore_warp(image_height, image_width, x, rois)
 
 
 class FaceParser(object):
-    def __init__(self, device='cuda:0', ckpt=None, encoder='rtnet50', decoder='fcn', num_classes=11):
+    def __init__(self, device='cuda:0', ckpt=None, encoder='rtnet50', decoder='fcn', num_classes=11, export_onnx=False):
         self.device = device
         model_name = '-'.join([encoder, decoder, str(num_classes)])
         assert model_name in WEIGHT, f'{model_name} is not supported'
 
-        pretrained_ckpt, mean, std, sz = WEIGHT[model_name]
+        self.model_name = model_name
+        pretrained_ckpt, mean, std, sz = WEIGHT[self.model_name]
         self.sz = sz
+        self.export_onnx = export_onnx
 
-        self.model = SegmentationModel(encoder, decoder, num_classes)
+        self.model = SegmentationModel(encoder, decoder, num_classes, self.export_onnx)
 
         self.transform = T.Compose([
             T.ToTensor(),
@@ -82,6 +93,7 @@ class FaceParser(object):
         self.model.load_state_dict(ckpt, True)
         self.model.eval()
         self.model.to(device)
+
 
     @torch.no_grad()
     def predict_img(self, img, bboxes, rgb=False):
@@ -117,14 +129,99 @@ class FaceParser(object):
 
         logits.shape
             torch.Size([1, 11, 513, 513])
-        """
-        logits = self.model(img, bboxes_tensor)
-        mask = self.restore_warp(h, w, logits, bboxes_tensor)
-        """
+
+        h
+            480
+        w
+            640
+
         mask.shape
             (1, 480, 640)
         """
-        return mask
+        # logits = self.model(img, bboxes_tensor)
+        # mask = self.restore_warp(h, w, logits, bboxes_tensor)
+        mask = self.model(img, bboxes_tensor, image_height=h, image_width=w)
+
+        if self.export_onnx:
+            self.model.eval()
+
+            import onnx
+            from onnxsim import simplify
+            RESOLUTION = [
+                [self.sz[0],self.sz[1]],
+
+            ]
+            MODEL = f'{self.model_name.replace("-", "_")}'
+            original_image_height = torch.tensor([h], dtype=torch.int64).cuda()
+            original_image_width = torch.tensor([w], dtype=torch.int64).cuda()
+            for H, W in RESOLUTION:
+                onnx_file = f"{MODEL}_{H}x{W}.onnx"
+                torch.onnx.export(
+                    self.model,
+                    args=(img, bboxes_tensor, original_image_height, original_image_width),
+                    f=onnx_file,
+                    opset_version=16,
+                    input_names=[
+                        'input_image',
+                        'bboxes_tensor',
+                        'original_image_height',
+                        'original_image_width',
+                    ],
+                    output_names=['output'],
+                )
+                model_onnx1 = onnx.load(onnx_file)
+                model_onnx1 = onnx.shape_inference.infer_shapes(model_onnx1)
+                onnx.save(model_onnx1, onnx_file)
+
+                model_onnx2 = onnx.load(onnx_file)
+                model_simp, check = simplify(model_onnx2)
+                onnx.save(model_simp, onnx_file)
+                model_onnx2 = onnx.load(onnx_file)
+                model_simp, check = simplify(model_onnx2)
+                onnx.save(model_simp, onnx_file)
+                model_onnx2 = onnx.load(onnx_file)
+                model_simp, check = simplify(model_onnx2)
+                onnx.save(model_simp, onnx_file)
+
+            onnx_file = f"{MODEL}_HxW.onnx"
+            # x = torch.randn(1, 3, self.sz[0], self.sz[1]).cuda()
+            torch.onnx.export(
+                self.model,
+                args=(img, bboxes_tensor, original_image_height, original_image_width),
+                f=onnx_file,
+                opset_version=16,
+                input_names=[
+                    'input_image',
+                    'bboxes_tensor',
+                    'original_image_height',
+                    'original_image_width',
+                ],
+                output_names=['output'],
+                dynamic_axes={
+                    'input_image' : {2: 'height', 3: 'width'},
+                    'output' : {1: 'height', 2: 'width'},
+                }
+            )
+            model_onnx1 = onnx.load(onnx_file)
+            model_onnx1 = onnx.shape_inference.infer_shapes(model_onnx1)
+            onnx.save(model_onnx1, onnx_file)
+
+            model_onnx2 = onnx.load(onnx_file)
+            model_simp, check = simplify(model_onnx2)
+            onnx.save(model_simp, onnx_file)
+            model_onnx2 = onnx.load(onnx_file)
+            model_simp, check = simplify(model_onnx2)
+            onnx.save(model_simp, onnx_file)
+            model_onnx2 = onnx.load(onnx_file)
+            model_simp, check = simplify(model_onnx2)
+            onnx.save(model_simp, onnx_file)
+
+            import sys
+            sys.exit(0)
+
+
+
+        return mask[:, 0, ...].cpu()
 
     def restore_warp(self, h, w, logits: torch.Tensor, bboxes_tensor):
         logits = softmax(logits, 1)

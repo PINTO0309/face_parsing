@@ -12,31 +12,19 @@ from ibug.face_parsing.utils import label_colormap
 def main() -> None:
     # Parse command-line arguments
     parser = ArgumentParser()
-    parser.add_argument(
-        '--input', '-i', help='Input video path or webcam index (default=0)', default=0)
-    parser.add_argument(
-        '--output', '-o', help='Output file path', default=None)
-    parser.add_argument('--fourcc', '-f', help='FourCC of the output video (default=mp4v)',
-                        type=str, default='mp4v')
-    parser.add_argument('--benchmark', '-b', help='Enable benchmark mode for CUDNN',
-                        action='store_true', default=False)
-    parser.add_argument('--no-display', help='No display if processing a video file',
-                        action='store_true', default=False)
-    parser.add_argument('--threshold', '-t', help='Detection threshold (default=0.8)',
-                        type=float, default=0.8)
-    parser.add_argument('--encoder', '-e', help='Method to use, can be either rtnet50 or rtnet101 (default=rtnet50)',
-                        default='rtnet50') # choices=['rtnet50', 'rtnet101', 'resnet50'])
+    parser.add_argument('--input', '-i', help='Input video path or webcam index (default=0)', default=0)
+    parser.add_argument('--output', '-o', help='Output file path', default=None)
+    parser.add_argument('--fourcc', '-f', help='FourCC of the output video (default=mp4v)', type=str, default='mp4v')
+    parser.add_argument('--benchmark', '-b', help='Enable benchmark mode for CUDNN', action='store_true', default=False)
+    parser.add_argument('--no-display', help='No display if processing a video file', action='store_true', default=False)
+    parser.add_argument('--threshold', '-t', help='Detection threshold (default=0.8)',type=float, default=0.8)
+    parser.add_argument('--encoder', '-e', help='Method to use, can be either rtnet50 or rtnet101 (default=rtnet50)', default='rtnet50') # choices=['rtnet50', 'rtnet101', 'resnet50'])
 
-    parser.add_argument('--decoder', help='Method to use, can be either rtnet50 or rtnet101 (default=rtnet50)',
-                        default='fcn', choices=['fcn', 'deeplabv3plus'])
+    parser.add_argument('--decoder', help='Method to use, can be either rtnet50 or rtnet101 (default=rtnet50)', default='fcn', choices=['fcn', 'deeplabv3plus'])
     parser.add_argument('-n', '--num-classes', help='Face parsing classes (default=11)', type=int, default=11)
-    parser.add_argument('--max-num-faces', help='Max number of faces',
-                        default=50)
-    parser.add_argument('--weights', '-w',
-                        help='Weights to load, can be either resnet50 or mobilenet0.25 when using RetinaFace',
-                        default=None)
-    parser.add_argument('--device', '-d', help='Device to be used by the model (default=cuda:0)',
-                        default='cuda:0')
+    parser.add_argument('--max-num-faces', help='Max number of faces', default=50)
+    parser.add_argument('--weights', '-w', help='Weights to load, can be either resnet50 or mobilenet0.25 when using RetinaFace', default=None)
+    parser.add_argument('--device', '-d', help='Device to be used by the model (default=cuda:0)', default='cuda:0')
     args = parser.parse_args()
 
     # Set benchmark mode flag for CUDNN
@@ -65,10 +53,12 @@ def main() -> None:
 
         # Open the output video (if a path is given)
         if args.output is not None:
-            out_vid = cv2.VideoWriter(args.output, fps=vid.get(cv2.CAP_PROP_FPS),
-                                      frameSize=(int(vid.get(cv2.CAP_PROP_FRAME_WIDTH)),
-                                                 int(vid.get(cv2.CAP_PROP_FRAME_HEIGHT))),
-                                      fourcc=cv2.VideoWriter_fourcc(*args.fourcc))
+            out_vid = cv2.VideoWriter(
+                args.output, fps=vid.get(cv2.CAP_PROP_FPS),
+                frameSize=(int(vid.get(cv2.CAP_PROP_FRAME_WIDTH)),
+                            int(vid.get(cv2.CAP_PROP_FRAME_HEIGHT))),
+                fourcc=cv2.VideoWriter_fourcc(*args.fourcc)
+            )
             assert out_vid.isOpened()
 
         # Process the frames
@@ -87,8 +77,7 @@ def main() -> None:
                 elapsed_time = time.time() - start_time
 
                 # Textural output
-                print(f'Frame #{frame_number} processed in {elapsed_time * 1000.0:.04f} ms: ' +
-                      f'{len(faces)} faces detected.')
+                print(f'Frame #{frame_number} processed in {elapsed_time * 1000.0:.04f} ms: ' + f'{len(faces)} faces detected.')
 
                 if len(faces) == 0:
                     continue
@@ -98,8 +87,7 @@ def main() -> None:
                 elapsed_time = time.time() - start_time
 
                 # Textural output
-                print(f'Frame #{frame_number} processed in {elapsed_time * 1000.0:.04f} ms: ' +
-                      f'{len(masks)} faces parsed.')
+                print(f'Frame #{frame_number} processed in {elapsed_time * 1000.0:.04f} ms: ' + f'{len(masks)} faces parsed.')
 
                 # # Rendering
                 dst = frame

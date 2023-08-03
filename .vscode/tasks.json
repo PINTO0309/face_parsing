@@ -1,0 +1,11 @@
+{
+  "version": "2.0.0",
+  "tasks": [
+    {
+      "label": "PreDebug",
+      "type": "shell",
+      "command": "sudo chmod 777 /dev/video*",
+      "problemMatcher": []
+    }
+  ]
+}

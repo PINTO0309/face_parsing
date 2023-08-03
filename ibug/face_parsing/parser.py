@@ -129,8 +129,7 @@ class FaceParser(object):
     def restore_warp(self, h, w, logits: torch.Tensor, bboxes_tensor):
         logits = softmax(logits, 1)
         logits[:, 0] = 1 - logits[:, 0]  # background class
-        logits = roi_tanh_polar_restore(
-            logits, bboxes_tensor, w, h, keep_aspect_ratio=True
+        logits = roi_tanh_polar_restore(logits, bboxes_tensor, w, h, keep_aspect_ratio=True
         )
         logits[:, 0] = 1 - logits[:, 0]
         predict = logits.cpu().argmax(1).numpy()

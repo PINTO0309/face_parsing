@@ -56,8 +56,7 @@ class SegmentationModel(nn.Module):
             x = self.decoder(high, low)
         else:
             x = self.decoder(high)
-        x = F.interpolate(x, size=input_shape,
-                          mode='bilinear', align_corners=False)
+        x = F.interpolate(x, size=input_shape, mode='bilinear', align_corners=False)
         return x
 
 

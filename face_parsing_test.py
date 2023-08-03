@@ -33,10 +33,18 @@ def main() -> None:
     vid = None
     out_vid = None
     has_window = False
-    face_detector = RetinaFacePredictor(threshold=args.threshold, device=args.device,
-                                        model=(RetinaFacePredictor.get_model('mobilenet0.25')))
+    face_detector = RetinaFacePredictor(
+        threshold=args.threshold,
+        device=args.device,
+        model=(RetinaFacePredictor.get_model('mobilenet0.25')),
+    )
     face_parser = RTNetPredictor(
-        device=args.device, ckpt=args.weights, encoder=args.encoder, decoder=args.decoder, num_classes=args.num_classes)
+        device=args.device,
+        ckpt=args.weights,
+        encoder=args.encoder,
+        decoder=args.decoder,
+        num_classes=args.num_classes,
+    )
 
     colormap = label_colormap(args.num_classes)
     print('Face detector created using RetinaFace.')

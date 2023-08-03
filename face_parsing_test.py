@@ -91,6 +91,12 @@ def main() -> None:
                     continue
                 # Parse faces
                 start_time = time.time()
+                """
+                frame.shape
+                    (480, 640, 3)
+                faces.shape
+                    (1, 15)
+                """
                 masks = face_parser.predict_img(frame, faces, rgb=False)
                 elapsed_time = time.time() - start_time
 

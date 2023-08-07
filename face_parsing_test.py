@@ -27,6 +27,8 @@ def main() -> None:
     parser.add_argument('--device', '-d', help='Device to be used by the model (default=cuda:0)', default='cuda:0')
 
     parser.add_argument('--export_onnx', '-eo', action='store_true')
+    parser.add_argument('--image_h', '-ih', type=int, default=480)
+    parser.add_argument('--image_w', '-iw', type=int, default=640)
     args = parser.parse_args()
 
     # Set benchmark mode flag for CUDNN
@@ -47,6 +49,8 @@ def main() -> None:
         decoder=args.decoder,
         num_classes=args.num_classes,
         export_onnx=args.export_onnx,
+        image_h=args.image_h,
+        image_w=args.image_w,
     )
 
     colormap = label_colormap(args.num_classes)

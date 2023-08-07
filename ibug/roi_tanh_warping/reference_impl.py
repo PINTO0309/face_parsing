@@ -1,7 +1,8 @@
 import cv2
 import numpy as np
 from typing import Optional, Any, Callable
-
+import kornia
+import torch
 
 __all__ = ['make_square_rois',
            'roi_tanh_warp', 'roi_tanh_restore',
@@ -59,36 +60,124 @@ def roi_tanh_restore(warped_image: np.ndarray, roi: np.ndarray, image_width: int
                      interpolation, borderMode=border_mode, borderValue=border_value)
 
 
-def roi_tanh_polar_warp(image: np.ndarray, roi: np.ndarray, target_width: int, target_height: int,
-                        angular_offset: float = 0.0, interpolation: Optional[int] = cv2.INTER_LINEAR,
-                        border_mode: Optional[int] = cv2.BORDER_CONSTANT, border_value: Any = 0,
-                        keep_aspect_ratio: bool = False) -> np.ndarray:
-    roi_center = (roi[2:4] + roi[:2]) / 2.0
-    roi_radii = (roi[2:4] - roi[:2]) / np.pi ** 0.5
-    cos_offset, sin_offset = np.cos(angular_offset), np.sin(angular_offset)
+def roi_tanh_polar_warp(
+    image: np.ndarray,
+    roi: np.ndarray,
+    target_width: int,
+    target_height: int,
+    angular_offset: float = 0.0,
+    interpolation: Optional[int] = cv2.INTER_LINEAR,
+    border_mode: Optional[int] = cv2.BORDER_CONSTANT,
+    border_value: Any = 0,
+    keep_aspect_ratio: bool = False
+) -> np.ndarray:
 
-    normalised_dest_indices = np.stack(np.meshgrid(np.arange(0.0, 1.0, 1.0 / target_width),
-                                                   np.arange(0.0, 2.0 * np.pi, 2.0 * np.pi / target_height)),
-                                       axis=-1)
+    """
+    roi: (15,)
+    roi_center: (2,)
+    roi_radii: (2,)
+    cos_offset: 1.0
+    sin_offset: 0.0
+    """
+    # roi_center = (roi[2:4] + roi[:2]) / 2.0
+    # roi_radii = (roi[2:4] - roi[:2]) / np.pi ** 0.5
+    # cos_offset, sin_offset = np.cos(angular_offset), np.sin(angular_offset)
+    roi_center = (roi[:, 2:4] + roi[:, :2]) / 2.0
+    roi_radii = (roi[:, 2:4] - roi[:, :2]) / torch.pi ** 0.5
+    cos_offset, sin_offset = torch.cos(torch.Tensor([angular_offset])), torch.sin(torch.Tensor([angular_offset]))
+
+    """
+    target_width: 513
+    target_height: 513
+    normalised_dest_indices.shape: (513, 513, 2)
+    """
+    # normalised_dest_indices = np.stack(
+    #     np.meshgrid(
+    #         np.arange(0.0, 1.0, 1.0 / target_width),
+    #         np.arange(0.0, 2.0 * np.pi, 2.0 * np.pi / target_height)
+    #     ),
+    #     axis=-1
+    # )
+    normalised_dest_indices = torch.stack(
+        torch.meshgrid(
+            torch.arange(0.0, 2.0 * torch.pi, 2.0 * torch.pi / target_height),
+            torch.arange(0.0, 1.0, 1.0 / target_width)
+        ),
+        axis=-1
+    )
+    normalised_dest_indices = torch.reshape(normalised_dest_indices, shape=[1,target_height,target_width,2])
+
+    """
+    radii.shape: (513, 513)
+    orientation_x.shape: (513, 513)
+    orientation_y.shape: (513, 513)
+    """
+    # radii = normalised_dest_indices[..., 0]
+    # orientation_x = np.cos(normalised_dest_indices[..., 1])
+    # orientation_y = np.sin(normalised_dest_indices[..., 1])
     radii = normalised_dest_indices[..., 0]
-    orientation_x = np.cos(normalised_dest_indices[..., 1])
-    orientation_y = np.sin(normalised_dest_indices[..., 1])
+    orientation_x = torch.cos(normalised_dest_indices[..., 1])
+    orientation_y = torch.sin(normalised_dest_indices[..., 1])
 
     if keep_aspect_ratio:
-        src_radii = np.arctanh(radii) * (roi_radii[0] * roi_radii[1] / np.sqrt(
-            roi_radii[1] ** 2 * orientation_x ** 2 + roi_radii[0] ** 2 * orientation_y ** 2))
+        """
+        src_radii.shape: (513, 513)
+        src_x_indices.shape: (513, 513)
+        src_y_indices.shape: (513, 513)
+        """
+        # src_radii = np.arctanh(radii) * (roi_radii[0] * roi_radii[1] / np.sqrt(roi_radii[1] ** 2 * orientation_x ** 2 + roi_radii[0] ** 2 * orientation_y ** 2))
+        # src_x_indices = src_radii * orientation_x
+        # src_y_indices = src_radii * orientation_y
+        src_radii = torch.arctanh(radii) * (roi_radii[:, 0] * roi_radii[:, 1] / torch.sqrt(roi_radii[:, 1] ** 2 * orientation_x ** 2 + roi_radii[:, 0] ** 2 * orientation_y ** 2))
         src_x_indices = src_radii * orientation_x
         src_y_indices = src_radii * orientation_y
+
     else:
         src_radii = np.arctanh(radii)
         src_x_indices = roi_radii[0] * src_radii * orientation_x
         src_y_indices = roi_radii[1] * src_radii * orientation_y
-    src_x_indices, src_y_indices = (roi_center[0] + cos_offset * src_x_indices - sin_offset * src_y_indices,
-                                    roi_center[1] + cos_offset * src_y_indices + sin_offset * src_x_indices)
+    """
+    src_x_indices.astype(np.float32): (513, 513)
+    src_y_indices.astype(np.float32): (513, 513)
+    """
+    src_x_indices, src_y_indices = (
+        roi_center[:, 0] + cos_offset * src_x_indices - sin_offset * src_y_indices,
+        roi_center[:, 1] + cos_offset * src_y_indices + sin_offset * src_x_indices
+    )
 
-    return cv2.remap(image, src_x_indices.astype(np.float32), src_y_indices.astype(np.float32),
-                     interpolation, borderMode=border_mode, borderValue=border_value)
+    """
+    image.shape
+        (480, 640, 3)
+    src_x_indices.astype(np.float32).shape
+        (513, 513)
+    src_y_indices.astype(np.float32).shape
+        (513, 513)
+    interpolation
+        1 : cv2.INTER_LINEAR
+    border_mode
+        0 : cv2.BORDER_CONSTANT
+    border_value
+        0
 
+    x.shape
+        (513, 513, 3)
+    """
+    # x = cv2.remap(
+    #     src=image,
+    #     map1=src_x_indices.astype(np.float32),
+    #     map2=src_y_indices.astype(np.float32),
+    #     interpolation=interpolation,
+    #     borderMode=border_mode,
+    #     borderValue=border_value,
+    # )
+    x = kornia.geometry.transform.remap(
+        image=image,
+        map_x=src_x_indices,
+        map_y=src_y_indices,
+        mode='bilinear',
+        padding_mode='zeros',
+    )
+    return x
 
 def roi_tanh_polar_restore(warped_image: np.ndarray, roi: np.ndarray, image_width: int, image_height: int,
                            angular_offset: float = 0.0, interpolation: Optional[int] = cv2.INTER_LINEAR,

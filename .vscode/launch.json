@@ -22,7 +22,20 @@
             "justMyCode": false,
             "preLaunchTask": "PreDebug",
             "args": [
-                "-i", "0", "-e", "rtnet50", "--decoder", "fcn", "-n", "11", "-d", "cuda:0", "-eo",
+                // "-i", "0", "-e", "rtnet50", "--decoder", "fcn", "-n", "11", "-d", "cuda:0", "-ih", "480", "-iw", "640", "-eo",
+                "-i", "0", "-e", "rtnet50", "--decoder", "fcn", "-n", "14", "-d", "cuda:0", "-ih", "480", "-iw", "640", "-eo",
+            ]
+        },
+        {
+            "name": "demo",
+            "type": "python",
+            "request": "launch",
+            "program": "${file}",
+            "console": "integratedTerminal",
+            "justMyCode": false,
+            "preLaunchTask": "PreDebug",
+            "args": [
+                "--movie", "test.png",
             ]
         }
     ]

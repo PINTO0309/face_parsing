@@ -173,8 +173,8 @@ def roi_tanh_polar_restore(
     if torch.is_tensor(angular_offsets):
         cos_offsets, sin_offsets = angular_offsets.cos(), angular_offsets.sin()
     else:
-        cos_offsets = [torch.cos(torch.Tensor([angular_offsets]).cuda())] * grids.size()[0]
-        sin_offsets = [torch.sin(torch.Tensor([angular_offsets]).cuda())] * grids.size()[0]
+        cos_offsets = [torch.cos(torch.Tensor([angular_offsets]))] * grids.size()[0]
+        sin_offsets = [torch.sin(torch.Tensor([angular_offsets]))] * grids.size()[0]
 
     warped_images = tf.pad(tf.pad(warped_images, [0, 0, 1, 1], mode='circular'), [1, 0, 0, 0], mode='replicate')
     for roi_center, roi_radii, grid, cos_offset, sin_offset in zip(roi_centers, rois_radii, grids, cos_offsets, sin_offsets):

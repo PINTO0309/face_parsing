@@ -73,11 +73,11 @@ class SegmentationModel(nn.Module):
 
         roi_center = (roi[:, 2:4] + roi[:, :2]) / 2.0
         roi_radii = (roi[:, 2:4] - roi[:, :2]) / torch.pi ** 0.5
-        cos_offset, sin_offset = torch.cos(torch.Tensor([angular_offset]).cuda()), torch.sin(torch.Tensor([angular_offset]).cuda())
+        cos_offset, sin_offset = torch.cos(torch.Tensor([angular_offset])), torch.sin(torch.Tensor([angular_offset]))
         normalised_dest_indices = torch.stack(
             torch.meshgrid(
-                torch.arange(0.0, 2.0 * torch.pi, 2.0 * torch.pi / target_height)[..., :target_height].cuda(),
-                torch.arange(0.0, 1.0, 1.0 / target_width)[..., :target_width].cuda()
+                torch.arange(0.0, 2.0 * torch.pi, 2.0 * torch.pi / target_height)[..., :target_height],
+                torch.arange(0.0, 1.0, 1.0 / target_width)[..., :target_width]
             ),
             axis=-1
         )
@@ -229,7 +229,7 @@ class FaceParser(object):
         # logits = self.model(img, bboxes_tensor)
         # mask = self.restore_warp(h, w, logits, bboxes_tensor)
 
-        # img = torch.randn([1,3,h,w]).cuda()
+        # img = torch.randn([1,3,h,w])
 
         # if not self.export_onnx:
         #     mask = self.model(img, bboxes_tensor, image_height=h, image_width=w)
@@ -282,9 +282,9 @@ class FaceParser(object):
                 [513,513],
             ]
             MODEL = f'{self.model_name.replace("-", "_")}'
-            bboxes_tensor = torch.randn([1,4], dtype=torch.float32).to(self.device)
+            bboxes_tensor = torch.randn([1,4], dtype=torch.float32).cpu()
             for H, W in RESOLUTION:
-                img = torch.randn([1,3,H,W]).cuda()
+                img = torch.randn([1,3,H,W]).cpu()
                 onnx_file = f"{MODEL}_1x3x{H}x{W}_1x4.onnx"
                 torch.onnx.export(
                     self.model,

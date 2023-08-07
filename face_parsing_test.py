@@ -24,11 +24,11 @@ def main() -> None:
     parser.add_argument('-n', '--num-classes', help='Face parsing classes (default=11)', type=int, default=11)
     parser.add_argument('--max-num-faces', help='Max number of faces', default=50)
     parser.add_argument('--weights', '-w', help='Weights to load, can be either resnet50 or mobilenet0.25 when using RetinaFace', default=None)
-    parser.add_argument('--device', '-d', help='Device to be used by the model (default=cuda:0)', default='cuda:0')
+    parser.add_argument('--device', '-d', help='Device to be used by the model (default=cuda:0)', default='cpu')
 
     parser.add_argument('--export_onnx', '-eo', action='store_true')
-    parser.add_argument('--image_h', '-ih', type=int, default=480)
-    parser.add_argument('--image_w', '-iw', type=int, default=640)
+    parser.add_argument('--image_h', '-ih', type=int, default=513)
+    parser.add_argument('--image_w', '-iw', type=int, default=513)
     args = parser.parse_args()
 
     # Set benchmark mode flag for CUDNN
@@ -52,6 +52,7 @@ def main() -> None:
         image_h=args.image_h,
         image_w=args.image_w,
     )
+
 
     colormap = label_colormap(args.num_classes)
     print('Face detector created using RetinaFace.')
